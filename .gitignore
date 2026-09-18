@@ -1,0 +1,3 @@
+# build output - shipped via GitHub Releases, not the repo
+/*.exe
+Clear-WindowsJunk.settings.txt
