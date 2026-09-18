@@ -150,6 +150,7 @@ namespace ClearWindowsJunk
             F<Button>("ScanBtn").Click += async (s, e) => await DoScan();
             F<Button>("CleanBtn").Click += async (s, e) => await DoClean();
             F<Button>("CancelBtn").Click += (s, e) => { if (_cts != null) _cts.Cancel(); };
+            F<Button>("BusyCancel").Click += (s, e) => { if (_cts != null) _cts.Cancel(); };
             F<Button>("AllBtn").Click += (s, e) => SetAll(true);
             F<Button>("NoneBtn").Click += (s, e) => SetAll(false);
             F<Button>("SafeBtn").Click += (s, e) => SetSafe();
@@ -766,13 +767,20 @@ namespace ClearWindowsJunk
             UpdateSelectionLine();
         }
 
-        void Busy(bool on)
+        void Busy(bool on, string title)
         {
             _busy = on;
             F<Button>("ScanBtn").IsEnabled = !on;
             F<Button>("CleanBtn").IsEnabled = !on && (_vms.Any(v => v.Selected) || SelectedNodes().Count > 0);
             F<Button>("CancelBtn").Visibility = on ? Visibility.Visible : Visibility.Collapsed;
             F<Border>("BarBox").Visibility = on ? Visibility.Visible : Visibility.Collapsed;
+            F<Border>("BusyOverlay").Visibility = on ? Visibility.Visible : Visibility.Collapsed;
+            if (on)
+            {
+                F<TextBlock>("BusyTitle").Text = title;
+                F<TextBlock>("BusyEyebrow").Text = "WORKING";
+                F<TextBlock>("BusyItem").Text = "starting…";
+            }
             if (!on) SetProgress(0);
         }
 
@@ -793,6 +801,28 @@ namespace ClearWindowsJunk
         {
             F<Border>("BarFill").BeginAnimation(WidthProperty,
                 new DoubleAnimation(96.0 * pct / 100.0, TimeSpan.FromMilliseconds(180)));
+
+            // The overlay bar is sized by its track, not a constant, so the card can be
+            // rewidened without the fill going out of step. ActualWidth is 0 until the
+            // overlay has laid out once, hence the fallback to the designed width.
+            var track = F<Border>("BusyTrack");
+            double w = track.ActualWidth > 0 ? track.ActualWidth : 418.0;
+            F<Border>("BusyFill").BeginAnimation(WidthProperty,
+                new DoubleAnimation(w * pct / 100.0, TimeSpan.FromMilliseconds(180)));
+            F<TextBlock>("BusyPct").Text = pct + "%";
+        }
+
+        // Both long jobs report the same three things, so they report them the same way.
+        void Progress(string stage, string item, int pct)
+        {
+            SetProgress(pct);
+            // The stage is which location is being worked on - the answer to "what is it
+            // doing", so it takes the eyebrow rather than being buried in the footer.
+            F<TextBlock>("BusyEyebrow").Text = string.IsNullOrEmpty(stage)
+                ? "WORKING" : stage.ToUpperInvariant();
+            F<TextBlock>("BusyItem").Text = item;
+            F<TextBlock>("Status").Text = string.IsNullOrEmpty(stage)
+                ? item : stage + " · " + item;
         }
 
         void Log(string line)
@@ -807,7 +837,7 @@ namespace ClearWindowsJunk
         async Task DoScan()
         {
             if (_busy) return;
-            Busy(true);
+            Busy(true, "Scanning your drive");
             F<Border>("SummaryCard").Visibility = Visibility.Collapsed;
             _cts = new CancellationTokenSource();
             var ct = _cts.Token;
@@ -815,10 +845,7 @@ namespace ClearWindowsJunk
             try
             {
                 await Task.Run(() => _eng.Scan(admin, p => Dispatcher.Invoke(new Action(() =>
-                {
-                    SetProgress(p.Percent);
-                    F<TextBlock>("Status").Text = "Scanning · " + p.Item;
-                })), ct), ct);
+                    Progress("Scanning", p.Item, p.Percent))), ct), ct);
             }
             catch (OperationCanceledException) { }
             catch (Exception ex) { Log("scan failed: " + ex.Message); }
@@ -830,7 +857,7 @@ namespace ClearWindowsJunk
             BuildDonut();
             UpdateSelectionLine();
             UpdateFree();
-            Busy(false);
+            Busy(false, null);
             FadeIn();
             F<TextBlock>("HeroLabel").Text = "RECLAIMABLE";
             F<TextBlock>("Status").Text = _cts.IsCancellationRequested ? "Scan cancelled" : "";
@@ -1001,7 +1028,7 @@ namespace ClearWindowsJunk
             }
 
             _notes.Clear();
-            Busy(true);
+            Busy(true, _eng.Cfg.DryRun ? "Dry run — nothing will be deleted" : "Cleaning");
             if (!_eng.Cfg.DryRun && picked.Count > 0)
             {
                 var failedPicks = await DeletePickedNodes(picked);
@@ -1015,10 +1042,7 @@ namespace ClearWindowsJunk
             try
             {
                 await Task.Run(() => _eng.Clean(admin, this, p => Dispatcher.Invoke(new Action(() =>
-                {
-                    SetProgress(p.Percent);
-                    F<TextBlock>("Status").Text = p.Stage + " · " + p.Item;
-                })), ct), ct);
+                    Progress(p.Stage, p.Item, p.Percent))), ct), ct);
             }
             catch (OperationCanceledException) { Log("cancelled"); }
             catch (Exception ex) { Log("clean failed: " + ex.Message); }
@@ -1039,7 +1063,7 @@ namespace ClearWindowsJunk
             BuildDonut();
             UpdateFree();
             UpdateSelectionLine();
-            Busy(false);
+            Busy(false, null);
         }
 
         void ShowSummary(List<TargetVm> run)
@@ -1275,6 +1299,8 @@ namespace ClearWindowsJunk
             }
 
             var app = new Application { ShutdownMode = ShutdownMode.OnMainWindowClose };
+            app.Resources.MergedDictionaries.Add(
+                (ResourceDictionary)System.Windows.Markup.XamlReader.Parse(Layout.AppStyles));
             try { app.Run(new MainWindow()); }
             catch (Exception ex) { MessageBox.Show(ex.ToString(), "Clear Windows Junk — startup failed"); }
         }

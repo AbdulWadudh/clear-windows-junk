@@ -33,7 +33,7 @@ Then verify:
 "Clear Windows Junk.exe" --selftest
 ```
 
-65 checks should pass and it exits `0`. A non-zero exit means a guard regressed — read
+82 checks should pass and it exits `0`. A non-zero exit means a guard regressed — read
 the failing line before shipping the binary.
 
 ---
@@ -75,7 +75,7 @@ Ten files, each with one job:
 | `Core.cs` | Settings load/save (registry + portable file), Restart Manager interop, the close safety gate, and all filesystem work — measure, age-aware delete, single-path delete. |
 | `Engine.cs` | The target list (what gets cleaned, and what each costs you), plus the scan and clean drivers. UI-free. |
 | `Tree.cs` | Breakdown rows, the recursive child enumerator, and `PathCoverage` — the pure rule that stops a ticked child being counted twice. |
-| `Layout.cs` | The whole window as a XAML string, kept out of the build system so `csc` alone is enough. |
+| `Layout.cs` | The whole window as a XAML string, kept out of the build system so `csc` alone is enough. Also `SharedStyles` (the implicit styles every window splices in) and `AppStyles` (the ones that must sit at application scope). |
 | `Dialogs.cs` | The checkbox picker used for close / force / relaunch. |
 | `Confirm.cs` | Themed confirm and notice dialogs, replacing `MessageBox.Show`. |
 | `Ui.cs` | Wiring: selection maths, tri-state roll-up, the tree, threading, and `Program.Main`. |
@@ -104,8 +104,21 @@ reference styles defined above them. Move them up and the app throws
 `Cannot find resource named 'Eyebrow'` at startup. Use `DynamicResource` for anything
 that changes with the theme.
 
-A XAML mistake is a runtime exception, not a compile error — it surfaces as a startup
-failure dialog with the full parse trace. Always launch once after editing `Layout.cs`.
+A XAML mistake is a runtime exception, not a compile error. `--selftest` now parses
+every window's markup, so a malformed string or an unresolvable `StaticResource` fails
+the test run rather than the first launch. Still launch once after editing `Layout.cs`
+— the test proves it parses, not that it looks right.
+
+**Styles belong in `SharedStyles`, not in a window.** WPF resolves an implicit style for
+an element inside a `DataTemplate` against the *window's* resources, never an ancestor
+element's. A window carrying its own cut-down copy renders stock Win32 chrome instead
+— a native checkbox, a native scrollbar, black text on the dark surface. `Dialogs.cs`
+and `Confirm.cs` splice the same `Layout.SharedStyles` string into their own
+`Border.Resources`; the self-test asserts each one ends up with a templated `CheckBox`.
+
+**ToolTips are the exception** and live in `Layout.AppStyles`, merged into
+`Application.Resources` by `Program.Main`. A tooltip is hosted in a `Popup`, which is a
+separate visual tree that a window-scoped style never reaches.
 
 ---
 
@@ -157,6 +170,7 @@ point:
 * a partial folder being treated as if it covered everything under it
 * a path being treated as covering itself
 * the close gate accepting the terminal that launched the app
+* a dialog losing the themed chrome and falling back to native Win32 controls
 
 Verify a new assertion actually bites by breaking the code and watching it fail. A
 test that passes against broken code is worse than no test — the PowerShell suite

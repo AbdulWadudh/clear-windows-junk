@@ -216,9 +216,73 @@ namespace ClearWindowsJunk
             Check(Engine.BuildTargets().Any(t => t.Name == "User Temp" && !t.NeedsAdmin), "User Temp needs no admin");
             Check(Engine.BuildTargets().Any(t => t.Name == "Windows Temp" && t.NeedsAdmin), "Windows Temp needs admin");
 
+            // ---- XAML parses, and every window carries the themed chrome ---
+            // A XAML mistake is a runtime exception, not a compile error, and a window
+            // that forgets Layout.SharedStyles silently falls back to stock Win32
+            // chrome - a native checkbox and black text on the dark surface.
+            CheckWindowChrome("main window", Layout.MainXaml);
+            CheckWindowChrome("app picker", PickWindow.Xaml);
+            CheckWindowChrome("confirm dialog", Dialog.Xaml);
+
+            // Tooltips live in popups, so they are styled once at app scope; without this
+            // they fall back to the pale Win32 box that ignores the theme entirely.
+            var appStyles = (System.Windows.ResourceDictionary)
+                System.Windows.Markup.XamlReader.Parse(Layout.AppStyles);
+            var tip = appStyles[typeof(System.Windows.Controls.ToolTip)] as System.Windows.Style;
+            Check(tip != null && HasTemplate(tip), "tooltips are themed, not the stock Win32 box");
+
+            // Ui.F<T>() throws on a missing name, so a typo in the overlay markup is a
+            // crash the first time a scan starts - not something the compiler sees.
+            CheckNames("progress overlay", Layout.MainXaml,
+                       "BusyOverlay", "BusyTitle", "BusyItem", "BusyTrack", "BusyFill",
+                       "BusyPct", "BusyCancel");
+
             Console.WriteLine();
             Console.WriteLine(_fails == 0 ? "SelfTest OK" : _fails + " FAILURE(S)");
             return _fails == 0 ? 0 : 1;
+        }
+
+        // Parsing proves the markup is well-formed and that every StaticResource in it
+        // resolves; the style probes prove the shared templates actually landed.
+        static void CheckWindowChrome(string who, string xaml)
+        {
+            System.Windows.Controls.Border root;
+            try { root = (System.Windows.Controls.Border)System.Windows.Markup.XamlReader.Parse(xaml); }
+            catch (Exception ex)
+            {
+                Check(false, who + ": XAML parses (" + ex.Message + ")");
+                return;
+            }
+            Check(true, who + ": XAML parses");
+            Check(Templated(root, typeof(System.Windows.Controls.CheckBox)),
+                  who + ": checkbox is themed, not stock Win32 chrome");
+            Check(root.Resources.Contains(typeof(System.Windows.Controls.TextBlock)),
+                  who + ": text picks up the theme brush instead of defaulting to black");
+        }
+
+        static bool Templated(System.Windows.Controls.Border root, Type control)
+        {
+            if (!root.Resources.Contains(control)) return false;
+            return HasTemplate(root.Resources[control] as System.Windows.Style);
+        }
+
+        static bool HasTemplate(System.Windows.Style st)
+        {
+            if (st == null) return false;
+            foreach (var sb in st.Setters)
+            {
+                var set = sb as System.Windows.Setter;
+                if (set != null && set.Property == System.Windows.Controls.Control.TemplateProperty)
+                    return true;
+            }
+            return false;
+        }
+
+        static void CheckNames(string who, string xaml, params string[] names)
+        {
+            var root = (System.Windows.Controls.Border)System.Windows.Markup.XamlReader.Parse(xaml);
+            foreach (var n in names)
+                Check(root.FindName(n) != null, who + ": '" + n + "' exists in the markup");
         }
 
         static bool MakeJunction(string link, string target)

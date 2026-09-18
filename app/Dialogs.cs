@@ -20,21 +20,13 @@ namespace ClearWindowsJunk
 
     public class PickWindow : Window
     {
-        const string Xaml = @"
+        internal const string Xaml = @"
 <Border xmlns='http://schemas.microsoft.com/winfx/2006/xaml/presentation'
         xmlns:x='http://schemas.microsoft.com/winfx/2006/xaml'
         Background='{DynamicResource WindowBg}' BorderBrush='{DynamicResource WindowBorder}' BorderThickness='1' TextOptions.TextFormattingMode='Ideal'
         TextOptions.TextRenderingMode='ClearType'>
   <Border.Resources>
-    <Style TargetType='TextBlock'>
-      <Setter Property='Foreground' Value='{DynamicResource Text}'/>
-      <Setter Property='FontFamily' Value='{DynamicResource FontUi}'/>
-      <Setter Property='FontSize' Value='13'/>
-    </Style>
-    <Style TargetType='CheckBox'>
-      <Setter Property='Foreground' Value='{DynamicResource Text}'/>
-      <Setter Property='FontFamily' Value='{DynamicResource FontUi}'/>
-    </Style>
+" + Layout.SharedStyles + @"
     <Style x:Key='Btn' TargetType='Button'>
       <Setter Property='FocusVisualStyle' Value='{x:Null}'/>
       <Setter Property='Foreground' Value='{DynamicResource Text}'/>
@@ -121,8 +113,13 @@ namespace ClearWindowsJunk
                   <CheckBox Grid.Column='0' IsChecked='{Binding Checked, Mode=TwoWay}'
                             VerticalAlignment='Center' Margin='0,0,10,0'/>
                   <StackPanel Grid.Column='1'>
-                    <TextBlock Text='{Binding Label}'/>
-                    <TextBlock Text='{Binding Detail}' Foreground='{DynamicResource TextMuted}' FontSize='11'
+                    <TextBlock Text='{Binding Label}' FontSize='13'
+                               FontFamily='{DynamicResource FontUi}'
+                               Foreground='{DynamicResource Text}'
+                               TextTrimming='CharacterEllipsis'/>
+                    <TextBlock Text='{Binding Detail}' FontSize='11'
+                               FontFamily='{DynamicResource FontUi}'
+                               Foreground='{DynamicResource TextMuted}'
                                TextTrimming='CharacterEllipsis'/>
                   </StackPanel>
                 </Grid>

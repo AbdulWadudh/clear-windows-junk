@@ -9,18 +9,41 @@ namespace ClearWindowsJunk
 {
     public static class Layout
     {
-        public const string MainXaml = @"
-<Border xmlns='http://schemas.microsoft.com/winfx/2006/xaml/presentation'
-        xmlns:x='http://schemas.microsoft.com/winfx/2006/xaml'
-        BorderBrush='{DynamicResource WindowBorder}' BorderThickness='1'
-        Background='{DynamicResource WindowBg}'
-        TextOptions.TextRenderingMode='ClearType'>
+        // Application-level, not per window: a ToolTip is hosted in a Popup, which is its
+        // own visual tree, so an implicit style sitting in a window's Border.Resources
+        // never reaches it. Left alone it draws the stock pale Win32 box with black text,
+        // which on the dark theme reads as a bug. Foreground and the font are set on the
+        // style itself because they inherit down into the ContentPresenter's text.
+        public const string AppStyles = @"
+<ResourceDictionary xmlns='http://schemas.microsoft.com/winfx/2006/xaml/presentation'
+                    xmlns:x='http://schemas.microsoft.com/winfx/2006/xaml'>
+  <Style TargetType='ToolTip'>
+    <Setter Property='Foreground' Value='{DynamicResource Text}'/>
+    <Setter Property='FontFamily' Value='{DynamicResource FontUi}'/>
+    <Setter Property='FontSize' Value='11.5'/>
+    <Setter Property='HasDropShadow' Value='False'/>
+    <Setter Property='Template'>
+      <Setter.Value>
+        <ControlTemplate TargetType='ToolTip'>
+          <Border CornerRadius='7' Padding='10,6'
+                  Background='{DynamicResource SurfaceAlt}'
+                  BorderBrush='{DynamicResource Line}' BorderThickness='1'>
+            <ContentPresenter/>
+          </Border>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+</ResourceDictionary>
+";
 
-  <Border.Resources>
-    <BooleanToVisibilityConverter x:Key='B2V'/>
-
-
-
+        // Implicit styles (no x:Key) that every window needs. WPF resolves an implicit
+        // style for an element inside a DataTemplate against the window's own resources,
+        // never an ancestor element's, so a window that does not carry these renders
+        // stock Win32 chrome - a native checkbox, a native scrollbar, and black text on
+        // the dark surface. Each window splices this same string into its
+        // Border.Resources: one copy of the templates instead of three that drift.
+        public const string SharedStyles = @"
     <Style TargetType='TextBlock'>
       <Setter Property='Foreground' Value='{DynamicResource Text}'/>
       <Setter Property='FontFamily' Value='{DynamicResource FontUi}'/>
@@ -28,15 +51,6 @@ namespace ClearWindowsJunk
       <Setter Property='TextOptions.TextFormattingMode' Value='Ideal'/>
       <Setter Property='TextOptions.TextRenderingMode' Value='ClearType'/>
     </Style>
-
-    <!-- section label: small, wide-tracked, muted -->
-    <Style x:Key='Eyebrow' TargetType='TextBlock'>
-      <Setter Property='Foreground' Value='{DynamicResource TextMuted}'/>
-      <Setter Property='FontSize' Value='11'/>
-      <Setter Property='FontWeight' Value='SemiBold'/>
-      <Setter Property='FontFamily' Value='{DynamicResource FontUi}'/>
-    </Style>
-
     <!-- checkbox: rounded, fills with accent, no stock chrome -->
     <Style TargetType='CheckBox'>
       <Setter Property='Foreground' Value='{DynamicResource Text}'/>
@@ -94,6 +108,79 @@ namespace ClearWindowsJunk
         </Setter.Value>
       </Setter>
     </Style>
+    <Style TargetType='TextBox'>
+      <Setter Property='Background' Value='{DynamicResource Well}'/>
+      <Setter Property='Foreground' Value='{DynamicResource Text}'/>
+      <Setter Property='BorderBrush' Value='{DynamicResource Line}'/>
+      <Setter Property='BorderThickness' Value='1'/>
+      <Setter Property='Padding' Value='8,3'/>
+      <Setter Property='FontFamily' Value='{DynamicResource FontUi}'/>
+      <Setter Property='CaretBrush' Value='{DynamicResource Text}'/>
+      <Setter Property='Template'>
+        <Setter.Value>
+          <ControlTemplate TargetType='TextBox'>
+            <Border Background='{TemplateBinding Background}' CornerRadius='7'
+                    BorderBrush='{TemplateBinding BorderBrush}' BorderThickness='1'>
+              <ScrollViewer x:Name='PART_ContentHost' Margin='{TemplateBinding Padding}'/>
+            </Border>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <!-- thin dark scrollbar -->
+    <Style TargetType='ScrollBar'>
+      <Setter Property='Width' Value='5'/>
+      <Setter Property='Background' Value='Transparent'/>
+      <Setter Property='Template'>
+        <Setter.Value>
+          <ControlTemplate TargetType='ScrollBar'>
+            <Grid Background='Transparent'>
+              <Track x:Name='PART_Track' IsDirectionReversed='True'>
+                <Track.Thumb>
+                  <Thumb>
+                    <Thumb.Template>
+                      <ControlTemplate TargetType='Thumb'>
+                        <Border CornerRadius='3' Background='{DynamicResource Line}' Margin='1,0'/>
+                      </ControlTemplate>
+                    </Thumb.Template>
+                  </Thumb>
+                </Track.Thumb>
+                <Track.IncreaseRepeatButton>
+                  <RepeatButton Command='ScrollBar.PageDownCommand' Opacity='0'/>
+                </Track.IncreaseRepeatButton>
+                <Track.DecreaseRepeatButton>
+                  <RepeatButton Command='ScrollBar.PageUpCommand' Opacity='0'/>
+                </Track.DecreaseRepeatButton>
+              </Track>
+            </Grid>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+";
+
+        public const string MainXaml = @"
+<Border xmlns='http://schemas.microsoft.com/winfx/2006/xaml/presentation'
+        xmlns:x='http://schemas.microsoft.com/winfx/2006/xaml'
+        BorderBrush='{DynamicResource WindowBorder}' BorderThickness='1'
+        Background='{DynamicResource WindowBg}'
+        TextOptions.TextRenderingMode='ClearType'>
+
+  <Border.Resources>
+    <BooleanToVisibilityConverter x:Key='B2V'/>
+
+
+
+" + SharedStyles + @"
+
+    <!-- section label: small, wide-tracked, muted -->
+    <Style x:Key='Eyebrow' TargetType='TextBlock'>
+      <Setter Property='Foreground' Value='{DynamicResource TextMuted}'/>
+      <Setter Property='FontSize' Value='11'/>
+      <Setter Property='FontWeight' Value='SemiBold'/>
+      <Setter Property='FontFamily' Value='{DynamicResource FontUi}'/>
+    </Style>
+
 
     <Style x:Key='Chip' TargetType='Button'>
       <Setter Property='Foreground' Value='{DynamicResource TextMuted}'/>
@@ -332,56 +419,7 @@ namespace ClearWindowsJunk
       </Setter>
     </Style>
 
-    <Style TargetType='TextBox'>
-      <Setter Property='Background' Value='{DynamicResource Well}'/>
-      <Setter Property='Foreground' Value='{DynamicResource Text}'/>
-      <Setter Property='BorderBrush' Value='{DynamicResource Line}'/>
-      <Setter Property='BorderThickness' Value='1'/>
-      <Setter Property='Padding' Value='8,3'/>
-      <Setter Property='FontFamily' Value='{DynamicResource FontUi}'/>
-      <Setter Property='CaretBrush' Value='{DynamicResource Text}'/>
-      <Setter Property='Template'>
-        <Setter.Value>
-          <ControlTemplate TargetType='TextBox'>
-            <Border Background='{TemplateBinding Background}' CornerRadius='7'
-                    BorderBrush='{TemplateBinding BorderBrush}' BorderThickness='1'>
-              <ScrollViewer x:Name='PART_ContentHost' Margin='{TemplateBinding Padding}'/>
-            </Border>
-          </ControlTemplate>
-        </Setter.Value>
-      </Setter>
-    </Style>
 
-    <!-- thin dark scrollbar -->
-    <Style TargetType='ScrollBar'>
-      <Setter Property='Width' Value='5'/>
-      <Setter Property='Background' Value='Transparent'/>
-      <Setter Property='Template'>
-        <Setter.Value>
-          <ControlTemplate TargetType='ScrollBar'>
-            <Grid Background='Transparent'>
-              <Track x:Name='PART_Track' IsDirectionReversed='True'>
-                <Track.Thumb>
-                  <Thumb>
-                    <Thumb.Template>
-                      <ControlTemplate TargetType='Thumb'>
-                        <Border CornerRadius='3' Background='{DynamicResource Line}' Margin='1,0'/>
-                      </ControlTemplate>
-                    </Thumb.Template>
-                  </Thumb>
-                </Track.Thumb>
-                <Track.IncreaseRepeatButton>
-                  <RepeatButton Command='ScrollBar.PageDownCommand' Opacity='0'/>
-                </Track.IncreaseRepeatButton>
-                <Track.DecreaseRepeatButton>
-                  <RepeatButton Command='ScrollBar.PageUpCommand' Opacity='0'/>
-                </Track.DecreaseRepeatButton>
-              </Track>
-            </Grid>
-          </ControlTemplate>
-        </Setter.Value>
-      </Setter>
-    </Style>
     <DataTemplate x:Key='TargetRow'>
                   <StackPanel>
                     <StackPanel Orientation='Horizontal' Margin='12,18,10,7'
@@ -820,6 +858,43 @@ namespace ClearWindowsJunk
         </Border>
       </Grid>
     </Grid>
+
+    <!-- ===================== progress overlay ===================== -->
+    <!-- A scrim over the whole window rather than a modal Window: Engine.Clean opens
+         its own modal pickers mid-run (close / force / relaunch), and a second modal
+         would fight those for the dialog stack. Spanning both rows also covers the
+         caption buttons, so Cancel is the only way out while files are going. -->
+    <Border x:Name='BusyOverlay' Grid.Row='0' Grid.RowSpan='2' Visibility='Collapsed'
+            Background='#CC070C17'>
+      <Border Width='470' CornerRadius='16' Padding='26,22'
+              HorizontalAlignment='Center' VerticalAlignment='Center'
+              Background='{DynamicResource Surface}'
+              BorderBrush='{DynamicResource Line}' BorderThickness='1'>
+        <StackPanel>
+          <TextBlock x:Name='BusyEyebrow' Text='WORKING' Style='{StaticResource Eyebrow}'/>
+          <TextBlock x:Name='BusyTitle' Text='' FontSize='19' FontWeight='SemiBold'
+                     FontFamily='{DynamicResource FontDisplay}'
+                     Foreground='{DynamicResource Text}' Margin='0,4,0,0'/>
+          <TextBlock x:Name='BusyItem' Text='' FontSize='12' Margin='0,8,0,0'
+                     Foreground='{DynamicResource TextMuted}'
+                     TextTrimming='CharacterEllipsis'/>
+          <Grid Margin='0,17,0,0'>
+            <Border x:Name='BusyTrack' Height='6' CornerRadius='3'
+                    Background='{DynamicResource TrackBg}'/>
+            <Border x:Name='BusyFill' Height='6' CornerRadius='3' Width='0'
+                    HorizontalAlignment='Left' Background='{DynamicResource AccentGrad}'/>
+          </Grid>
+          <Grid Margin='0,13,0,0'>
+            <TextBlock x:Name='BusyPct' Text='0%' FontSize='12' VerticalAlignment='Center'
+                       FontFamily='{DynamicResource FontMono}'
+                       Foreground='{DynamicResource TextMuted}'
+                       Typography.NumeralAlignment='Tabular'/>
+            <Button x:Name='BusyCancel' Content='Cancel' Style='{StaticResource Ghost}'
+                    HorizontalAlignment='Right'/>
+          </Grid>
+        </StackPanel>
+      </Border>
+    </Border>
   </Grid>
 </Border>";
 

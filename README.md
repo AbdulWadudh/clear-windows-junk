@@ -222,7 +222,7 @@ Both front-ends carry their own assertions, and the guards above are covered rat
 than assumed.
 
 ```powershell
-& ".\Clear Windows Junk.exe" --selftest     # 65 checks
+& ".\Clear Windows Junk.exe" --selftest     # 82 checks
 .\Clear-WindowsJunk.ps1 -SelfTest
 ```
 
