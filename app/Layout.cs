@@ -860,11 +860,15 @@ namespace ClearWindowsJunk
     </Grid>
 
     <!-- ===================== progress overlay ===================== -->
-    <!-- A scrim over the whole window rather than a modal Window: Engine.Clean opens
-         its own modal pickers mid-run (close / force / relaunch), and a second modal
-         would fight those for the dialog stack. Spanning both rows also covers the
-         caption buttons, so Cancel is the only way out while files are going. -->
-    <Border x:Name='BusyOverlay' Grid.Row='0' Grid.RowSpan='2' Visibility='Collapsed'
+    <!-- A scrim over the content rather than a modal Window: Engine.Clean opens its own
+         modal pickers mid-run (close / force / relaunch), and a second modal would fight
+         those for the dialog stack.
+
+         Row 1 only, never spanning row 0. The title bar is the one element wired to
+         DragMove, so covering it would make the window unmovable for the whole length
+         of a clean. It also puts the card in the middle of the layout it belongs to
+         instead of the middle of the frame. -->
+    <Border x:Name='BusyOverlay' Grid.Row='1' Visibility='Collapsed'
             Background='#CC070C17'>
       <Border Width='470' CornerRadius='16' Padding='26,22'
               HorizontalAlignment='Center' VerticalAlignment='Center'

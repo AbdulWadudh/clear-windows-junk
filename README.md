@@ -14,26 +14,13 @@ Ships as two front-ends over the same rules:
 
 ---
 
-## Why this exists
-
-It replaces the `del /s /f /q %temp%` batch file that everyone has. That script had
-three problems this one does not:
-
-* It targeted **Windows XP paths** — `system32\dllcache`, `%USERPROFILE%\Local Settings\*`,
-  `Cookies`, `Recent`. On Vista and later those are junction points. `del /s` follows
-  them and `rd /s` can delete what they point at.
-* It used `rd` + `md` on every folder, which **drops the original ACLs and owner**.
-* It had no idea what it was deleting or whether anything was still using it.
-
----
-
 ## Download
 
 Grab the latest from the [**Releases** page](https://github.com/AbdulWadudh/clear-windows-junk/releases/latest):
 
 | File | What it is |
 |---|---|
-| `clear-windows-junk-1.0.1.zip` | **Start here.** All three files, with the executable named `Clear Windows Junk.exe`. |
+| `clear-windows-junk-1.0.2.zip` | **Start here.** All three files, with the executable named `Clear Windows Junk.exe`. |
 | `Clear.Windows.Junk.exe` | The desktop app on its own. GitHub substitutes dots for spaces in loose release assets, so rename it to `Clear Windows Junk.exe` after downloading if you want that name in Task Manager. |
 | `Clear-WindowsJunk.ps1` | The console/TUI version. |
 | `Clear-WindowsJunk.cmd` | Launcher for the `.ps1` — requests admin, keeps the window open on failure. |

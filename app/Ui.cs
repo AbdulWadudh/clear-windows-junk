@@ -151,6 +151,11 @@ namespace ClearWindowsJunk
             F<Button>("CleanBtn").Click += async (s, e) => await DoClean();
             F<Button>("CancelBtn").Click += (s, e) => { if (_cts != null) _cts.Cancel(); };
             F<Button>("BusyCancel").Click += (s, e) => { if (_cts != null) _cts.Cancel(); };
+            // The scrim swallows mouse events over the content, so it does the dragging
+            // too - a long clean must never leave the window pinned. Cancel is a Button
+            // and handles its own press, so it does not reach this.
+            F<Border>("BusyOverlay").MouseLeftButtonDown += (s, e) =>
+            { try { DragMove(); } catch { } };
             F<Button>("AllBtn").Click += (s, e) => SetAll(true);
             F<Button>("NoneBtn").Click += (s, e) => SetAll(false);
             F<Button>("SafeBtn").Click += (s, e) => SetSafe();
@@ -775,6 +780,12 @@ namespace ClearWindowsJunk
             F<Button>("CancelBtn").Visibility = on ? Visibility.Visible : Visibility.Collapsed;
             F<Border>("BarBox").Visibility = on ? Visibility.Visible : Visibility.Collapsed;
             F<Border>("BusyOverlay").Visibility = on ? Visibility.Visible : Visibility.Collapsed;
+            // Closing an app hands the foreground to whatever is next in the z-order,
+            // which is rarely us - so the window sank behind other apps mid-clean and
+            // only resurfaced when the next prompt activated it. Nothing here was hiding
+            // it; it was losing a race it never entered. Held in front for the length of
+            // the run, and only that long.
+            Topmost = on;
             if (on)
             {
                 F<TextBlock>("BusyTitle").Text = title;
@@ -854,10 +865,13 @@ namespace ClearWindowsJunk
             bool anything = _vms.Any(v => v.T.Bytes > 0);
             F<TextBlock>("EmptyState").Visibility = anything ? Visibility.Collapsed : Visibility.Visible;
             F<ScrollViewer>("ListScroll").Visibility = anything ? Visibility.Visible : Visibility.Collapsed;
-            BuildDonut();
-            UpdateSelectionLine();
-            UpdateFree();
-            Busy(false, null);
+            try
+            {
+                BuildDonut();
+                UpdateSelectionLine();
+                UpdateFree();
+            }
+            finally { Busy(false, null); }
             FadeIn();
             F<TextBlock>("HeroLabel").Text = "RECLAIMABLE";
             F<TextBlock>("Status").Text = _cts.IsCancellationRequested ? "Scan cancelled" : "";
@@ -1058,12 +1072,15 @@ namespace ClearWindowsJunk
                 if (pick.Count > 0) _eng.RestartClosed(pick, _admin, this);
             }
 
-            ShowSummary(chosen);
-            foreach (var v in _vms) v.RaiseAll();
-            BuildDonut();
-            UpdateFree();
-            UpdateSelectionLine();
-            Busy(false, null);
+            try
+            {
+                ShowSummary(chosen);
+                foreach (var v in _vms) v.RaiseAll();
+                BuildDonut();
+                UpdateFree();
+                UpdateSelectionLine();
+            }
+            finally { Busy(false, null); }
         }
 
         void ShowSummary(List<TargetVm> run)

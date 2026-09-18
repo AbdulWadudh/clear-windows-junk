@@ -237,6 +237,15 @@ namespace ClearWindowsJunk
                        "BusyOverlay", "BusyTitle", "BusyItem", "BusyTrack", "BusyFill",
                        "BusyPct", "BusyCancel");
 
+            // TitleBar is the only element wired to DragMove. An overlay that reaches
+            // into row 0 covers it and pins the window for the whole length of a clean.
+            var main = (System.Windows.Controls.Border)
+                System.Windows.Markup.XamlReader.Parse(Layout.MainXaml);
+            var scrim = (System.Windows.UIElement)main.FindName("BusyOverlay");
+            Check(System.Windows.Controls.Grid.GetRow(scrim) == 1
+                  && System.Windows.Controls.Grid.GetRowSpan(scrim) == 1,
+                  "progress overlay stays off the title bar, so the window still drags");
+
             Console.WriteLine();
             Console.WriteLine(_fails == 0 ? "SelfTest OK" : _fails + " FAILURE(S)");
             return _fails == 0 ? 0 : 1;
