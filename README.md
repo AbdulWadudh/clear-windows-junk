@@ -27,6 +27,22 @@ three problems this one does not:
 
 ---
 
+## Download
+
+Grab the latest from the [**Releases** page](https://github.com/AbdulWadudh/clear-windows-junk/releases/latest):
+
+| File | What it is |
+|---|---|
+| `Clear Windows Junk.exe` | The desktop app. Single file, nothing to install. |
+| `Clear-WindowsJunk.ps1` | The console/TUI version. |
+| `Clear-WindowsJunk.cmd` | Launcher for the `.ps1` — requests admin, keeps the window open on failure. |
+| `clear-windows-junk-1.0.0.zip` | All three in one archive. |
+
+Windows SmartScreen will warn on first run because the binary is unsigned — **More info → Run anyway**.
+Verify it first if you prefer: `Get-FileHash "Clear Windows Junk.exe"` against the checksums in the release notes.
+
+---
+
 ## Quick start
 
 **Desktop app** — double-click `Clear Windows Junk.exe`.
